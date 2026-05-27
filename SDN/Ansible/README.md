@@ -45,33 +45,27 @@ gestión de contenedores y orquestación.
 ## Cómo usar este repositorio
 
 1. Clonar:
-   ```bash
+```bash
    git clone https://github.com/JesraaelRamses/awx-automation-sre
    cd awx-automation-sre
-   ```
+```
 ---
 
 2. Copiar y editar variables:
-  ```bash
-
+```sh
     cp .env.example .env
     nano .env   # cambiar contraseñas y secret key
-
-  ```
-  ---
+```
+---
 
 3. Iniciar servicios:
-
 ```sh
-
 docker-compose up -d
-
 ```
 ---
 
 
 4. Acceder a AWX: 
-
 ```sh
 http://localhost:8080
 Usuario: admin (o el que definiste en .env)
@@ -80,7 +74,6 @@ Usuario: admin (o el que definiste en .env)
 
 
 # Lecciones aprendidas
-
 ```sh
 AWX requiere que la contraseña del superusuario
 se asigne manualmentesi usas --noinput.
