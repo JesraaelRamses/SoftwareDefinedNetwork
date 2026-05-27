@@ -10,7 +10,7 @@ gestionar inventarios y programar tareas.
 
 Forma parte de mi portafolio como 
 **Site Reliability Engineer**, 
-demostrando habilidades en automatización, 
+demostrando habilidades en automatización,
 gestión de contenedores y orquestación.
 
 ## Tecnologías utilizadas
