@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: docker.io/library/postgres:15
+    container_name: awx-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+    networks:
+      - awx-net
+    restart: unless-stopped
+
+  redis:
+    image: docker.io/library/redis:7
+    container_name: awx-redis
+    networks:
+      - awx-net
+    restart: unless-stopped
+
+  awx-web:
+    image: quay.io/ansible/awx:23.0.0
+    container_name: awx-web
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_USER: ${POSTGRES_USER}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
+      DATABASE_NAME: ${POSTGRES_DB}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SECRET_KEY: ${SECRET_KEY}
+      ADMIN_USER: ${ADMIN_USER}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      AWX_SETTINGS_FILE: /etc/tower/settings.py
+    ports:
+      - "8080:8052"
+    volumes:
+      - ./config/settings.py:/etc/tower/settings.py:Z
+    networks:
+      - awx-net
+    command: >
+      /bin/sh -c "
+      awx-manage migrate --noinput &&
+      awx-manage createsuperuser --noinput --username admin --email admin@example.com || true &&
+      awx-manage runserver 0.0.0.0:8052
+      "
+    restart: unless-stopped
+
+  awx-task:
+    image: quay.io/ansible/awx:23.0.0
+    container_name: awx-task
+    depends_on:
+      - postgres
+      - redis
+      - awx-web
+    environment:
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_USER: ${POSTGRES_USER}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
+      DATABASE_NAME: ${POSTGRES_DB}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SECRET_KEY: ${SECRET_KEY}
+      AWX_SETTINGS_FILE: /etc/tower/settings.py
+    volumes:
+      - ./config/settings.py:/etc/tower/settings.py:Z
+    networks:
+      - awx-net
+    command: awx-manage run_dispatcher
+    restart: unless-stopped
+
+networks:
+  awx-net:
+    driver: bridge
