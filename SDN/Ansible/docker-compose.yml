@@ -12,21 +12,33 @@ services:
       - ./pgdata:/var/lib/postgresql/data
     networks:
       - awx-net
-    restart: unless-stopped
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U awx"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: docker.io/library/redis:7
     container_name: awx-redis
     networks:
       - awx-net
-    restart: unless-stopped
+    restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   awx-web:
     image: quay.io/ansible/awx:23.0.0
     container_name: awx-web
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       DATABASE_HOST: postgres
       DATABASE_PORT: 5432
@@ -38,28 +50,27 @@ services:
       SECRET_KEY: ${SECRET_KEY}
       ADMIN_USER: ${ADMIN_USER}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
-      AWX_SETTINGS_FILE: /etc/tower/settings.py
+      AWX_RECEPTOR_ENABLED: "false"
+      AWX_CELERY_BROKER_URL: "redis://redis:6379/0"
+      AWX_CELERY_RESULT_BACKEND: "redis://redis:6379/0"
     ports:
       - "8080:8052"
     volumes:
-      - ./config/settings.py:/etc/tower/settings.py:Z
+      - ./projects:/var/lib/awx/projects:Z
+      - ./entrypoint-web.sh:/entrypoint.sh:Z
     networks:
       - awx-net
-    command: >
-      /bin/sh -c "
-      awx-manage migrate --noinput &&
-      awx-manage createsuperuser --noinput --username admin --email admin@example.com || true &&
-      awx-manage runserver 0.0.0.0:8052
-      "
-    restart: unless-stopped
+    command: /entrypoint.sh
+    restart: always
 
   awx-task:
     image: quay.io/ansible/awx:23.0.0
     container_name: awx-task
     depends_on:
-      - postgres
-      - redis
-      - awx-web
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       DATABASE_HOST: postgres
       DATABASE_PORT: 5432
@@ -69,13 +80,15 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       SECRET_KEY: ${SECRET_KEY}
-      AWX_SETTINGS_FILE: /etc/tower/settings.py
+      AWX_RECEPTOR_ENABLED: "false"
+      AWX_CELERY_BROKER_URL: "redis://redis:6379/0"
+      AWX_CELERY_RESULT_BACKEND: "redis://redis:6379/0"
     volumes:
-      - ./config/settings.py:/etc/tower/settings.py:Z
+      - ./projects:/var/lib/awx/projects:Z
     networks:
       - awx-net
     command: awx-manage run_dispatcher
-    restart: unless-stopped
+    restart: always
 
 networks:
   awx-net:
